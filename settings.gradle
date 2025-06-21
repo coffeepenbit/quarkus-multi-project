@@ -1,0 +1,10 @@
+pluginManagement {
+    repositories {
+        gradlePluginPortal()
+        mavenCentral()
+    }
+}
+rootProject.name = 'quarkus-multi-project'
+include 'libs:common'
+include 'services:fooservice'
+include 'services:barservice'
