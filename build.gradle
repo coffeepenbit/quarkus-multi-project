@@ -1,0 +1,89 @@
+plugins {
+    id 'jacoco-report-aggregation'
+    id 'io.quarkus' version "${quarkusPluginVersion}" apply false
+}
+
+allprojects {
+    repositories {
+        mavenCentral()
+    }
+}
+
+subprojects {
+    apply plugin: 'java'
+    if (project.path != ':services') {
+        apply plugin: 'io.quarkus'
+    }
+
+    group = 'org.example'
+    apply plugin: 'jacoco'
+
+    sourceSets {
+        main {
+            resources.srcDir rootProject.file('config')
+        }
+    }
+
+    tasks.named('processResources') {
+        duplicatesStrategy = DuplicatesStrategy.INCLUDE
+        from(rootProject.file('docker')) {
+            include 'Dockerfile.jvm'
+            into 'docker'
+        }
+    }
+
+    java {
+        sourceCompatibility = JavaVersion.VERSION_21
+        targetCompatibility = JavaVersion.VERSION_21
+    }
+
+    dependencies {
+        implementation enforcedPlatform("io.quarkus:quarkus-bom:${quarkusPlatformVersion}")
+        testImplementation 'io.quarkus:quarkus-jacoco'
+        testImplementation 'io.quarkus:quarkus-junit5'
+        testImplementation 'io.rest-assured:rest-assured'
+    }
+
+    test {
+        useJUnitPlatform()
+    }
+
+    tasks.withType(JavaCompile).configureEach {
+        options.encoding = 'UTF-8'
+    }
+}
+
+project(':libs') {
+    apply plugin: 'java-library'
+    dependencies {
+        implementation 'io.quarkus:quarkus-arc'
+    }
+    tasks.withType(io.quarkus.gradle.tasks.QuarkusBuild).configureEach {
+        enabled = false
+    }
+}
+
+project(':services:fooservice') {
+    dependencies {
+        implementation project(':libs')
+        implementation 'io.quarkus:quarkus-resteasy-reactive'
+    }
+}
+
+project(':services:barservice') {
+    dependencies {
+        implementation project(':libs')
+        implementation 'io.quarkus:quarkus-resteasy-reactive'
+    }
+}
+
+tasks.register('jacocoRootReport', JacocoReport) {
+    dependsOn subprojects.test
+    executionData.setFrom(files(subprojects.collect { "${it.buildDir}/jacoco/test.exec" }))
+    sourceDirectories.setFrom(files(subprojects.collect { it.sourceSets.main.allSource.srcDirs }))
+    classDirectories.setFrom(files(subprojects.collect { it.sourceSets.main.output }))
+    reports {
+        xml.required.set(true)
+        html.required.set(true)
+    }
+}

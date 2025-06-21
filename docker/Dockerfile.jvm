@@ -1,0 +1,8 @@
+FROM eclipse-temurin:21-jre as runtime
+WORKDIR /work/application
+COPY --chown=1001:0 build/quarkus-app/lib/ /work/application/lib/
+COPY --chown=1001:0 build/quarkus-app/*.jar /work/application/
+COPY --chown=1001:0 build/quarkus-app/app/ /work/application/app/
+COPY --chown=1001:0 build/quarkus-app/quarkus/ /work/application/quarkus/
+USER 1001
+ENTRYPOINT ["java","-jar","app-runner.jar"]
