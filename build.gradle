@@ -1,0 +1,75 @@
+plugins {
+    alias(libs.plugins.quarkus) apply false
+    id 'jacoco'
+    alias(libs.plugins.dependencyAnalysis)
+}
+
+repositories {
+    mavenCentral()
+}
+
+subprojects {
+    repositories {
+        mavenCentral()
+    }
+    apply plugin: 'java'
+    apply plugin: 'jacoco'
+    ext.quarkusPlatformGroupId = 'io.quarkus.platform'
+    ext.quarkusPlatformArtifactId = 'quarkus-bom'
+    ext.quarkusPlatformVersion = libs.versions.quarkus.get()
+    sourceSets.main.resources.srcDir rootProject.file('config')
+    tasks.withType(JavaCompile).configureEach {
+        sourceCompatibility = JavaVersion.VERSION_21.toString()
+        targetCompatibility = JavaVersion.VERSION_21.toString()
+    }
+    tasks.withType(Test).configureEach {
+        useJUnitPlatform()
+    }
+    tasks.withType(ProcessResources).configureEach {
+        duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    }
+}
+
+configure(subprojects.findAll { it.path.startsWith(':services') }) {
+    apply plugin: 'com.autonomousapps.dependency-analysis'
+}
+
+task jacocoRootReport(type: JacocoReport) {
+    dependsOn subprojects.test
+    additionalSourceDirs.from(files(subprojects.sourceSets.main.allSource.srcDirs))
+    sourceDirectories.from(files(subprojects.sourceSets.main.allSource.srcDirs))
+    classDirectories.from(files(subprojects.sourceSets.main.output))
+    executionData.from(files(subprojects.jacocoTestReport.executionData))
+    reports {
+        xml.required.set(true)
+        html.required.set(true)
+    }
+}
+
+project(':libs:common') {
+    apply plugin: 'java-library'
+    apply plugin: 'io.quarkus'
+
+    dependencies {
+        implementation enforcedPlatform(libs.quarkus.bom)
+        implementation libs.quarkus.arc
+        implementation 'org.jboss.logging:jboss-logging'
+        testImplementation libs.quarkus.junit5
+        testImplementation libs.rest.assured
+    }
+}
+
+configure([project(':services:fooservice'), project(':services:barservice')]) {
+    apply plugin: 'io.quarkus'
+
+    dependencies {
+        implementation project(':libs:common')
+        implementation enforcedPlatform(libs.quarkus.bom)
+        implementation libs.quarkus.rest
+        implementation libs.quarkus.arc
+        testImplementation libs.quarkus.junit5
+        testImplementation libs.rest.assured
+    }
+
+}
+
